@@ -1,4 +1,5 @@
 import express from 'express';
+import fs from 'fs';
 import { createServer } from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -498,19 +499,21 @@ async function startServer() {
     });
   });
 
-  if (process.env.NODE_ENV !== 'production') {
+  const distPath = path.join(__dirname, 'dist');
+  const hasDist = fs.existsSync(path.join(distPath, 'index.html'));
+
+  if (process.env.NODE_ENV === 'production' || hasDist) {
+    app.use(express.static(distPath));
+    app.get('*', (_req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  } else {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(__dirname, 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
   }
 
   const PORT = Number(process.env.PORT) || 3000;
